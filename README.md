@@ -53,13 +53,13 @@ fib(40)
 
 * optimization passes at different steps
 ---
-## Lexer
+## Lexer (Chapter 1)
 [link](https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/LangImpl01.html)
 
 * perform lexical analysis, read and break into tokens
 
 ---
-## Parser and AST
+## Parser and AST (Chapter 2)
 [link](https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/LangImpl02.html)
 
 * convert tokens into IR
@@ -138,6 +138,9 @@ int main() {
 ```
 
 ---
-## AST -> LLVM IR
+## AST -> LLVM IR (Chapter 3)
 [link](https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/LangImpl03.html)
 
+---
+## JIT and Optimizer support (Chapter 4)
+[link](https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/LangImpl04.html)
