@@ -1,2 +1,8 @@
 chap2
 chap2.DSYM/
+chap3
+chap3.DSYM/
+chap4
+chap4.DSYM/
+.DS_Store
+.vscode*
