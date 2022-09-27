@@ -351,3 +351,123 @@ ready> LLVM ERROR: Program used external function 'testfunc' which could not be 
 
 WHY??  
 `test func was a part of the same module that contained the anonymous expression. Wh we removed the module from the JIT we also deleted the definition fo testfunc along with it.` 
+
+Solution: Putting the anonymous expression in a separate module from the rest of the function definitions. This means we can delete it without affecting the rest of the functions.
+
+Currently `KaleidoscopeJIT` always returns the most recent definition
+```cpp
+ready> def foo(x) x + 1;
+Read function definition:
+define double @foo(double %x) {
+entry:
+  %addtmp = fadd double %x, 1.000000e+00
+  ret double %addtmp
+}
+
+ready> foo(2);
+Evaluated to 3.000000
+
+ready> def foo(x) x + 2;
+define double @foo(double %x) {
+entry:
+  %addtmp = fadd double %x, 2.000000e+00
+  ret double %addtmp
+}
+
+ready> foo(2);
+Evaluated to 4.000000
+```
+
+Let's re-generate previous function definitions into each new module we open.
+
+```cpp
+static std::unique_ptr<KaleidoscopeJIT> TheJIT;
+
+...
+
+Function *getFunction(std::string Name) {
+  // First, see if the function has already been added to the current module.
+  if (auto *F = TheModule->getFunction(Name))
+    return F;
+
+  // If not, check whether we can codegen the declaration from some existing
+  // prototype.
+  auto FI = FunctionProtos.find(Name);
+  if (FI != FunctionProtos.end())
+    return FI->second->codegen();
+
+  // If no existing prototype exists, return null.
+  return nullptr;
+}
+
+...
+
+Value *CallExprAST::codegen() {
+  // Look up the name in the global module table.
+  Function *CalleeF = getFunction(Callee);
+
+...
+
+Function *FunctionAST::codegen() {
+  // Transfer ownership of the prototype to the FunctionProtos map, but keep a
+  // reference to it for use below.
+  auto &P = *Proto;
+  FunctionProtos[Proto->getName()] = std::move(Proto);
+  Function *TheFunction = getFunction(P.getName());
+  if (!TheFunction)
+    return nullptr;
+```
+
+* new global `FunctonProtos` holds most recent prototype for each function
+* `getFunction` - searches `TheModule` for an existing function declaration, creating anew one if it is not found
+* Need to update `CallExprAST::codegen()` by calling `TheModule->getFunction()` 
+* update `FunctionAST::codegen()` to update the FunctionProtos map first, then call `getFunction()`. This is useful becuase we can now always obtain a function declaration in the current module for any previously declared function. 
+
+We now need to update _HandleDefinition_ and _HandleExtern_ which are called during parsing of the tokens
+
+```cpp
+static void HandleDefinition() {
+  if (auto FnAST = ParseDefinition()) {
+    if (auto *FnIR = FnAST->codegen()) {
+      fprintf(stderr, "Read function definition:");
+      FnIR->print(errs());
+      fprintf(stderr, "\n");
+      TheJIT->addModule(std::move(TheModule));
+      InitializeModuleAndPassManager();
+    }
+  } else {
+    // Skip token for error recovery.
+     getNextToken();
+  }
+}
+
+static void HandleExtern() {
+  if (auto ProtoAST = ParseExtern()) {
+    if (auto *FnIR = ProtoAST->codegen()) {
+      fprintf(stderr, "Read extern: ");
+      FnIR->print(errs());
+      fprintf(stderr, "\n");
+      FunctionProtos[ProtoAST->getName()] = std::move(ProtoAST);
+    }
+  } else {
+    // Skip token for error recovery.
+    getNextToken();
+  }
+}
+```
+
+* `HandleDefinition` - add two lines to transfer the newly defined function to the JIT and open a new module
+* `HandleExtern` - add one ine to add the prototype to _FunctionProtos_
+
+Try it Out!
+
+```shell
+ready> extern sin(x);  
+ready> extern cos(x);  
+ready> sin(1.0);
+ready> def foo(x) sin(x)*sin(x) + cos(x)*cos(x);
+ready> foo(4.0);
+```
+
+How does the JIT compiler know about sin and cos?  
+`It first searches all the modules added to the JIT, and if no definition is found falls back to calling 'dlsym("sin")' and calls the c math library version of sin directly.`
