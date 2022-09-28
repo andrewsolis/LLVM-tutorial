@@ -158,7 +158,7 @@ Example: with constant folding
 <img src="images/folding_1.png" width="400px">
 
 * normally support in AST
-* With LLVM since all calls go through LLVM IR Builder, the builder itself checsks where folding is possible
+* With LLVM since all calls go through LLVM IR Builder, the builder itself checks where folding is possible
 * recommend using `IRBuilder` for generating code for this, as no "syntatic overhead" 
 * However, this isn't without its limitations
 
@@ -190,13 +190,13 @@ Two sets of passes for support in LLVM
     * across large body of code, often whole file
 * `per function`
     * operate on a single function at a time
-* [ How to WRite a Pass ](https://llvm.org/docs/WritingAnLLVMPass.html)  
+* [ How to Write a Pass ](https://llvm.org/docs/WritingAnLLVMPass.html)  
 * [ List of LLVM Passes ](https://llvm.org/docs/Passes.html)  
 
 What we want is a per-function optimization as a user types in their functions
-* `FunctionPassManager` used to keep trak of which LLVM optimizations we like to run
+* `FunctionPassManager` used to keep track of which LLVM optimizations we like to run
     * new Manager for each module we want to optimize
-    * Create a `FunctionPassManager` function to create and initilize the module and pass manager for us
+    * Create a `FunctionPassManager` function to create and initialize the module and pass manager for us
 
 ```cpp
   void InitializeModuleAndPassManager(void) {
@@ -220,7 +220,7 @@ What we want is a per-function optimization as a user types in their functions
   ```
 
 * add call adds four optimization passes (look at tutorial for more details) but mostly related to "cleanup" optimizations
-* Run our new optimizer after our newly created function is constructed but before it's returned to the cient
+* Run our new optimizer after our newly created function is constructed but before it's returned to the client
 
 ```cpp
 if (Value *RetVal = Body->codegen()) {
@@ -244,14 +244,14 @@ Going back to our previous example lets now try our code again
 <img src="images/optimized1.png" width="400px">
 
 
-* You can view a list of varios passes available in LLVM [here](https://llvm.org/docs/Passes.html). 
+* You can view a list of various passes available in LLVM [here](https://llvm.org/docs/Passes.html). 
 
 Now that we have our code coming out of our front-end lets execute it!
 
 ### Adding a JIT Compiler
 
 * LLVM IR code can be used to run optimizations (as above), dump to text or binary forms, compily it to assembly files (.s), or <ins>JIT compile</ins> it
-* We'll add JIT compiler support by immediately evaluating the top-level expressions typed n   
+* We'll add JIT compiler support by immediately evaluating the top-level expressions typed in   
 * Examples
     * if a user types `1+2` then it should print out 3
     * if a user defines a function, we should be able to call it from the command line  
@@ -333,9 +333,9 @@ Now that we have our code coming out of our front-end lets execute it!
     * Once complete we can add the module to the JIT using `addModule`
     * once added we need a pointer to the final generated code using `findSymbol` and pass in the name of the top level function: `__anon_expr` 
     * We then get the memory address of the `__anon_expr` function using `getAddress()`
-        * Since we LLVM JIT compiler matches the native platform ABI, we can just cast the result pointer to a function pointer of that type and call it directly
+        * Since the LLVM JIT compiler matches the native platform ABI, we can just cast the result pointer to a function pointer of that type and call it directly
         * This means there is no difference between the JIT compiled code and native machine code that is statically linked in our application
-    * Once finished, since we don't support re-evaluation of top-level expressions, we move the module from the JIT when were'e done
+    * Once finished, since we don't support re-evaluation of top-level expressions, we move the module from the JIT when we are done
 
 Try it out now!
 
@@ -350,7 +350,7 @@ ready> LLVM ERROR: Program used external function 'testfunc' which could not be 
 ```
 
 WHY??  
-`test func was a part of the same module that contained the anonymous expression. Wh we removed the module from the JIT we also deleted the definition fo testfunc along with it.` 
+`testfunc was a part of the same module that contained the anonymous expression. When we removed the module from the JIT we also deleted the definition to testfunc along with it.` 
 
 Solution: Putting the anonymous expression in a separate module from the rest of the function definitions. This means we can delete it without affecting the rest of the functions.
 
@@ -457,7 +457,7 @@ static void HandleExtern() {
 ```
 
 * `HandleDefinition` - add two lines to transfer the newly defined function to the JIT and open a new module
-* `HandleExtern` - add one ine to add the prototype to _FunctionProtos_
+* `HandleExtern` - add one line to add the prototype to _FunctionProtos_
 
 Try it Out!
 
